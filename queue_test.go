@@ -1,6 +1,7 @@
 package queue_test
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -129,4 +130,16 @@ func BenchmarkChannelPop(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		<-q
 	}
+}
+
+func ExampleQueue() {
+	q := queue.New()
+	defer q.Close()
+
+	q.Push("item")
+	out := <-q.Pop()
+	fmt.Printf("received: %v\n", out)
+
+	// Output:
+	// received: item
 }
