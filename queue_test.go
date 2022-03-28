@@ -58,6 +58,37 @@ func TestQueueOrdered(t *testing.T) {
 	}
 }
 
+func TestQueuePointers(t *testing.T) {
+	type Type struct {
+		Value int
+	}
+
+	q := queue.New() // *Type
+	defer q.Close()
+
+	// Push 50 items.
+	for i := 0; i < 50; i++ {
+		q.Push(&Type{Value: i})
+	}
+
+	// And then pop 50 items, hoping to receive them in the correct order.
+	for i := 0; i < 50; i++ {
+		o := <-q.Pop()
+		if outVal, ok := o.(*Type); !ok {
+			t.Errorf("Queue output type should be *Type but is %T", o)
+		} else if outVal.Value != i {
+			t.Errorf("Queue output should be %d but is %v", i, outVal)
+		}
+	}
+
+	// Check that there are no remaining items.
+	select {
+	case <-q.Pop():
+		t.Error("Queue.Pop returned value")
+	default:
+	}
+}
+
 func TestQueueFlush(t *testing.T) {
 	q := queue.New()
 	defer q.Close()
