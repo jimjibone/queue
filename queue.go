@@ -24,7 +24,7 @@ func New() *Queue {
 		push:  make(chan interface{}),
 		pop:   make(chan interface{}),
 		flush: make(chan struct{}),
-		stop:  make(chan struct{}),
+		stop:  make(chan struct{}, 1),
 		wg:    &sync.WaitGroup{},
 	}
 	q.wg.Add(1)
@@ -34,9 +34,11 @@ func New() *Queue {
 
 // Close the Queue.
 func (q *Queue) Close() {
-	q.stop <- struct{}{}
+	select {
+	case q.stop <- struct{}{}:
+	default:
+	}
 	q.wg.Wait()
-	close(q.pop)
 }
 
 // Push an item onto the back of the Queue.
@@ -56,6 +58,7 @@ func (q *Queue) Flush() {
 
 func (q *Queue) runloop() {
 	defer q.wg.Done()
+	defer close(q.pop)
 
 	l := list.New()
 

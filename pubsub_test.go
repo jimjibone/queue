@@ -9,11 +9,12 @@ import (
 
 func TestPubSubSimple(t *testing.T) {
 	pub := queue.NewPub()
-	defer pub.Close()
+	// defer pub.Close() -- test note: closing before sub2 is closed to cover extra cases.
 
 	sub1 := pub.NewSub()
 	sub2 := pub.NewSub()
 	defer sub1.Close()
+	defer pub.Close()
 	defer sub2.Close()
 
 	item := "item"
