@@ -1,7 +1,6 @@
 package queue
 
 import (
-	"container/list"
 	"sync"
 )
 
@@ -9,9 +8,9 @@ import (
 // pushed to the back of the Queue and then popped off the front by listening on
 // the Pop channel. This structure differs from channels in that its buffer is
 // effectively endless.
-type Queue struct {
-	push  chan interface{}
-	pop   chan interface{}
+type Queue[T any] struct {
+	push  chan T
+	pop   chan T
 	flush chan struct{}
 	stop  chan struct{}
 	wg    *sync.WaitGroup
@@ -19,10 +18,10 @@ type Queue struct {
 
 // New returns a new, running, Queue. Remember to call Close on the Queue once
 // you're finished with it.
-func New() *Queue {
-	q := &Queue{
-		push:  make(chan interface{}),
-		pop:   make(chan interface{}),
+func New[T any]() *Queue[T] {
+	q := &Queue[T]{
+		push:  make(chan T),
+		pop:   make(chan T),
 		flush: make(chan struct{}),
 		stop:  make(chan struct{}, 1),
 		wg:    &sync.WaitGroup{},
@@ -33,7 +32,7 @@ func New() *Queue {
 }
 
 // Close the Queue.
-func (q *Queue) Close() {
+func (q *Queue[T]) Close() {
 	select {
 	case q.stop <- struct{}{}:
 	default:
@@ -42,25 +41,25 @@ func (q *Queue) Close() {
 }
 
 // Push an item onto the back of the Queue.
-func (q *Queue) Push(item interface{}) {
+func (q *Queue[T]) Push(item T) {
 	q.push <- item
 }
 
 // Pop an item from the front of the Queue.
-func (q *Queue) Pop() <-chan interface{} {
+func (q *Queue[T]) Pop() <-chan T {
 	return q.pop
 }
 
 // Flush empties the Queue.
-func (q *Queue) Flush() {
+func (q *Queue[T]) Flush() {
 	q.flush <- struct{}{}
 }
 
-func (q *Queue) runloop() {
+func (q *Queue[T]) runloop() {
 	defer q.wg.Done()
 	defer close(q.pop)
 
-	l := list.New()
+	var l []T
 
 	for {
 		// Wait for new items to add to the list or stop.
@@ -69,27 +68,24 @@ func (q *Queue) runloop() {
 		case <-q.stop:
 			return
 		case item := <-q.push:
-			l.PushBack(item)
+			l = append(l, item)
 		}
 
 		// While there are items in the list, try to pop them out, otherwise
 		// accept new items or stop.
-		for l.Len() > 0 {
-			popItem := l.Front()
+		for len(l) > 0 {
+			popItem := l[0]
 			select {
 			case <-q.flush:
 				// Remove all items from the list.
-				for l.Len() > 0 {
-					e := l.Front()
-					l.Remove(e)
-				}
+				l = nil
 			case <-q.stop:
 				return
 			case item := <-q.push:
-				l.PushBack(item)
-			case q.pop <- popItem.Value:
+				l = append(l, item)
+			case q.pop <- popItem:
 				// The item was popped successfully so remove it from the list.
-				l.Remove(popItem)
+				l = l[1:]
 			}
 		}
 	}

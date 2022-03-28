@@ -5,20 +5,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jimjibone/queue"
+	"github.com/jimjibone/queue/v2"
 )
 
 func TestQueueSimple(t *testing.T) {
-	q := queue.New()
+	q := queue.New[string]()
 	defer q.Close()
 
 	item := "item"
 	q.Push(item)
 	out := <-q.Pop()
-	if output, ok := out.(string); !ok {
-		t.Errorf("Queue out type should be string but is %T", out)
-	} else if output != item {
-		t.Errorf("Queue output should be %q but is %q", item, output)
+	if out != item {
+		t.Errorf("Queue output should be %q but is %q", item, out)
 	}
 
 	select {
@@ -32,7 +30,7 @@ func TestQueueSimple(t *testing.T) {
 }
 
 func TestQueueOrdered(t *testing.T) {
-	q := queue.New()
+	q := queue.New[int]()
 	defer q.Close()
 
 	// Push 50 items.
@@ -42,11 +40,9 @@ func TestQueueOrdered(t *testing.T) {
 
 	// And then pop 50 items, hoping to receive them in the correct order.
 	for i := 0; i < 50; i++ {
-		o := <-q.Pop()
-		if outVal, ok := o.(int); !ok {
-			t.Errorf("Queue output type should be int but is %T", o)
-		} else if outVal != i {
-			t.Errorf("Queue output should be %d but is %d", i, outVal)
+		out := <-q.Pop()
+		if out != i {
+			t.Errorf("Queue output should be %d but is %d", i, out)
 		}
 	}
 
@@ -63,7 +59,7 @@ func TestQueuePointers(t *testing.T) {
 		Value int
 	}
 
-	q := queue.New() // *Type
+	q := queue.New[*Type]()
 	defer q.Close()
 
 	// Push 50 items.
@@ -73,11 +69,9 @@ func TestQueuePointers(t *testing.T) {
 
 	// And then pop 50 items, hoping to receive them in the correct order.
 	for i := 0; i < 50; i++ {
-		o := <-q.Pop()
-		if outVal, ok := o.(*Type); !ok {
-			t.Errorf("Queue output type should be *Type but is %T", o)
-		} else if outVal.Value != i {
-			t.Errorf("Queue output should be %d but is %v", i, outVal)
+		out := <-q.Pop()
+		if out.Value != i {
+			t.Errorf("Queue output should be %d but is %d", i, out)
 		}
 	}
 
@@ -90,7 +84,7 @@ func TestQueuePointers(t *testing.T) {
 }
 
 func TestQueueFlush(t *testing.T) {
-	q := queue.New()
+	q := queue.New[int]()
 	defer q.Close()
 	timeout := time.NewTicker(time.Millisecond)
 	defer timeout.Stop()
@@ -122,7 +116,7 @@ func TestQueueFlush(t *testing.T) {
 }
 
 func BenchmarkQueuePush(b *testing.B) {
-	q := queue.New()
+	q := queue.New[int]()
 	defer q.Close()
 	for i := 0; i < b.N; i++ {
 		q.Push(i)
@@ -130,7 +124,7 @@ func BenchmarkQueuePush(b *testing.B) {
 }
 
 func BenchmarkQueuePop(b *testing.B) {
-	q := queue.New()
+	q := queue.New[int]()
 	defer q.Close()
 	for i := 0; i < b.N; i++ {
 		q.Push(i)
@@ -164,7 +158,7 @@ func BenchmarkChannelPop(b *testing.B) {
 }
 
 func ExampleQueue() {
-	q := queue.New()
+	q := queue.New[string]()
 	defer q.Close()
 
 	q.Push("item")

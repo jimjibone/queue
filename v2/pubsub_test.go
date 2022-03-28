@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/jimjibone/queue"
+	"github.com/jimjibone/queue/v2"
 )
 
 func TestPubSubSimple(t *testing.T) {
-	pub := queue.NewPub()
+	pub := queue.NewPub[string]()
 	// defer pub.Close() -- test note: closing before sub2 is closed to cover extra cases.
 
 	sub1 := pub.NewSub()
@@ -20,17 +20,13 @@ func TestPubSubSimple(t *testing.T) {
 	item := "item"
 	pub.Pub(item)
 
-	out := <-sub1.Sub()
-	if output, ok := out.(string); !ok {
-		t.Errorf("Sub out type should be string but is %T", out)
-	} else if output != item {
+	output := <-sub1.Sub()
+	if output != item {
 		t.Errorf("Sub output should be %q but is %q", item, output)
 	}
 
-	out = <-sub2.Sub()
-	if output, ok := out.(string); !ok {
-		t.Errorf("Sub out type should be string but is %T", out)
-	} else if output != item {
+	output = <-sub2.Sub()
+	if output != item {
 		t.Errorf("Sub output should be %q but is %q", item, output)
 	}
 
@@ -47,7 +43,7 @@ func TestPubSubSimple(t *testing.T) {
 }
 
 func ExamplePub() {
-	pub := queue.NewPub()
+	pub := queue.NewPub[string]()
 	defer pub.Close()
 
 	sub1 := pub.NewSub()

@@ -2,12 +2,12 @@
 
 A basic event queue (and publisher/subscriber) in go, now supporting Go v1.18+ Generics in `github.com/jimjibone/queue/v2`.
 
-See the [`v2` readme](./v2/README.md) for a slightly faster and type-safe option.
+See the [`v1` readme](../README.md) for the older interface based implementation.
 
 ## Installation
 
 ```sh
-go get github.com/jimjibone/queue
+go get github.com/jimjibone/queue/v2
 ```
 
 ## Queue Usage
@@ -18,7 +18,7 @@ the Pop channel. This structure differs from channels in that its buffer is
 effectively endless.
 
 ```go
-q := queue.New()
+q := queue.New[string]()
 defer q.Close()
 
 q.Push("item")
@@ -32,7 +32,7 @@ Pub is a channel-based broadcast FIFO queue. Built on top of Queue, the Pub
 sends published messages to all active Subs created via the NewSub method.
 
 ```go
-pub := queue.NewPub()
+pub := queue.NewPub[string]()
 defer pub.Close()
 
 sub1 := pub.NewSub()
