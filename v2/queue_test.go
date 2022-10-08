@@ -115,6 +115,62 @@ func TestQueueFlush(t *testing.T) {
 	}
 }
 
+func TestQueueDiscard(t *testing.T) {
+	q := queue.New[int]()
+	defer q.Close()
+	timeout := time.NewTicker(time.Millisecond)
+	defer timeout.Stop()
+
+	// Push an item.
+	q.Push(1)
+
+	// Start discarding.
+	q.Discard(true)
+
+	// Push some items.
+	for i := 2; i < 5; i++ {
+		q.Push(i)
+	}
+
+	// Stop discarding.
+	q.Discard(false)
+
+	// Push some more items.
+	for i := 5; i < 7; i++ {
+		q.Push(i)
+	}
+
+	// Check that queue is poppable and we only receive 1, 5, 6.
+	count := 0
+Poppable:
+	for {
+		select {
+		case i := <-q.Pop():
+			switch i {
+			case 1, 5, 6:
+				count++
+				if count == 3 {
+					break Poppable
+				}
+			default:
+				t.Errorf("Queue.Pop did not return correct value: %d", i)
+			}
+		case <-timeout.C:
+			t.Error("Queue.Pop did not return value")
+		}
+	}
+
+	// Flush.
+	q.Flush()
+
+	// Check that there are no remaining items.
+	select {
+	case <-q.Pop():
+		t.Error("Queue.Pop returned value")
+	case <-timeout.C:
+	}
+}
+
 func BenchmarkQueuePush(b *testing.B) {
 	q := queue.New[int]()
 	defer q.Close()
