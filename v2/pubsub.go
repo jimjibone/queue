@@ -66,6 +66,11 @@ func (p *Pub[T]) Pub(item T) {
 	}
 }
 
+// Send publishes the item to a single subscriber.
+func (p *Pub[T]) Send(to *Sub[T], item T) {
+	to.queue.Push(item)
+}
+
 // Sub receives the next published item.
 func (s *Sub[T]) Sub() <-chan T {
 	return s.queue.Pop()
