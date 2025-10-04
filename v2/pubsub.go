@@ -54,12 +54,10 @@ func (p *Pub[T]) removeSub(sub *Sub[T]) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	sub.queue.Close()
-	if _, found := p.subs[sub.id]; found {
-		delete(p.subs, sub.id)
-	}
+	delete(p.subs, sub.id)
 }
 
-// Pub publishes the new item to subscribers.
+// Pub publishes the item to subscribers.
 func (p *Pub[T]) Pub(item T) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
