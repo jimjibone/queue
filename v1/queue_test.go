@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jimjibone/queue"
+	"github.com/jimjibone/queue/v1"
 )
 
 func TestQueueSimple(t *testing.T) {

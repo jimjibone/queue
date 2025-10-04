@@ -2,7 +2,7 @@
 
 A basic event queue (and publisher/subscriber) in go, now supporting Go v1.18+ Generics in `github.com/jimjibone/queue/v2`.
 
-See the [`v1` readme](../README.md) for the older interface based implementation.
+See the [`v1` readme](../v1/README.md) for the older interface based implementation.
 
 ## Installation
 

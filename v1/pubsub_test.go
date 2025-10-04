@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/jimjibone/queue"
+	"github.com/jimjibone/queue/v1"
 )
 
 func TestPubSubSimple(t *testing.T) {
