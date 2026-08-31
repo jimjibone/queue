@@ -14,6 +14,7 @@ type Queue[T any] struct {
 	pop     chan T
 	flush   chan struct{}
 	cancel  func()
+	done    <-chan struct{}
 	discard chan bool
 	wg      *sync.WaitGroup
 }
@@ -27,6 +28,7 @@ func New[T any]() *Queue[T] {
 		pop:     make(chan T),
 		flush:   make(chan struct{}),
 		cancel:  cancel,
+		done:    ctx.Done(),
 		discard: make(chan bool),
 		wg:      &sync.WaitGroup{},
 	}
@@ -41,9 +43,13 @@ func (q *Queue[T]) Close() {
 	q.wg.Wait()
 }
 
-// Push an item onto the back of the Queue.
+// Push an item onto the back of the Queue. If the Queue is closed, the item is
+// dropped.
 func (q *Queue[T]) Push(item T) {
-	q.push <- item
+	select {
+	case q.push <- item:
+	case <-q.done:
+	}
 }
 
 // Pop an item from the front of the Queue.
@@ -51,14 +57,20 @@ func (q *Queue[T]) Pop() <-chan T {
 	return q.pop
 }
 
-// Flush empties the Queue.
+// Flush empties the Queue. A no-op on a closed Queue, per Push.
 func (q *Queue[T]) Flush() {
-	q.flush <- struct{}{}
+	select {
+	case q.flush <- struct{}{}:
+	case <-q.done:
+	}
 }
 
-// Discard all pushed items.
+// Discard all pushed items. A no-op on a closed Queue, per Push.
 func (q *Queue[T]) Discard(discard bool) {
-	q.discard <- discard
+	select {
+	case q.discard <- discard:
+	case <-q.done:
+	}
 }
 
 func (q *Queue[T]) runloop(ctx context.Context) {

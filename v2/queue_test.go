@@ -224,3 +224,52 @@ func ExampleQueue() {
 	// Output:
 	// received: item
 }
+
+// A Queue is closed by its consumer, while a producer may still be pushing.
+// Before this was handled, the producer parked forever on the unbuffered push
+// channel that the stopped runloop had been the only reader of, taking down
+// whatever goroutine it was running on.
+func TestPushAfterCloseDoesNotBlock(t *testing.T) {
+	q := queue.New[string]()
+	q.Close()
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for i := 0; i < 100; i++ {
+			q.Push("item")
+		}
+		q.Flush()
+		q.Discard(true)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("Push, Flush or Discard blocked on a closed Queue")
+	}
+}
+
+// The same thing, but with the close racing the push rather than preceding it.
+// Run under -race, this is the realistic ordering.
+func TestPushDuringCloseDoesNotBlock(t *testing.T) {
+	for i := 0; i < 50; i++ {
+		q := queue.New[int]()
+
+		pushed := make(chan struct{})
+		go func() {
+			defer close(pushed)
+			for j := 0; j < 20; j++ {
+				q.Push(j)
+			}
+		}()
+
+		q.Close()
+
+		select {
+		case <-pushed:
+		case <-time.After(2 * time.Second):
+			t.Fatal("Push blocked while the Queue was closing")
+		}
+	}
+}

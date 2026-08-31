@@ -3,6 +3,7 @@ package queue_test
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/jimjibone/queue/v2"
 )
@@ -60,4 +61,79 @@ func ExamplePub() {
 	// Output:
 	// sub1 received: item
 	// sub2 received: item
+}
+
+// The shape some servers use: a run goroutine replays current state to a newly
+// registered Sub with Send, while that Sub's owner closes it. Send must not
+// strand the run goroutine, because that goroutine also serves every other
+// subscriber and its own shutdown.
+func TestSendToClosedSubDoesNotBlock(t *testing.T) {
+	pub := queue.NewPub[int]()
+	defer pub.Close()
+
+	sub := pub.NewSub()
+	sub.Close()
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for i := 0; i < 100; i++ {
+			pub.Send(sub, i)
+		}
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("Send blocked on a closed Sub")
+	}
+}
+
+// As above, but with the close racing the replay.
+func TestSendDuringSubCloseDoesNotBlock(t *testing.T) {
+	for i := 0; i < 50; i++ {
+		pub := queue.NewPub[int]()
+		sub := pub.NewSub()
+
+		replayed := make(chan struct{})
+		go func() {
+			defer close(replayed)
+			// A snapshot big enough that the close lands mid-replay.
+			for j := 0; j < 200; j++ {
+				pub.Send(sub, j)
+			}
+		}()
+
+		sub.Close()
+
+		select {
+		case <-replayed:
+		case <-time.After(2 * time.Second):
+			t.Fatal("Send blocked while the Sub was closing")
+		}
+		pub.Close()
+	}
+}
+
+// Pub must stay unaffected: a closed subscriber is skipped, live ones still
+// receive.
+func TestPubSkipsClosedSub(t *testing.T) {
+	pub := queue.NewPub[string]()
+	defer pub.Close()
+
+	closed := pub.NewSub()
+	live := pub.NewSub()
+	defer live.Close()
+	closed.Close()
+
+	pub.Pub("item")
+
+	select {
+	case got := <-live.Sub():
+		if got != "item" {
+			t.Errorf("live sub got %q, want %q", got, "item")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("Pub did not reach the live subscriber")
+	}
 }
